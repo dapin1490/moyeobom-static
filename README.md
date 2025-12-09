@@ -24,7 +24,7 @@ moyeobom-static/
 ├── video_view.html        # 비디오 파일 분석
 ├── map_view.html          # 데모 지도 뷰
 ├── map_view_info.html     # 지도 정보
-├── _nav.html              # 네비게이션
+├── nav.html              # 네비게이션
 └── static/
     ├── css/               # 스타일시트
     ├── images/            # 이미지
