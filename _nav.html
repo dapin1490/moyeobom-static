@@ -1,0 +1,33 @@
+<!-- 공통 네비게이션 컴포넌트 (정적 버전) -->
+<nav class="nav">
+    <div class="nav-container">
+        <a href="index.html" class="nav-link" id="nav-home">HOME</a>
+        <a href="count_view.html" class="nav-link" id="nav-count">People Counter</a>
+        <a href="area_view.html" class="nav-link" id="nav-area">Person Area Ratio</a>
+        <a href="video_view.html" class="nav-link" id="nav-video">video view</a>
+        <a href="map_view.html" class="nav-link" id="nav-map">demo map view</a>
+    </div>
+</nav>
+
+<script>
+    // 현재 페이지에 따라 활성 링크 표시
+    (function() {
+        const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+        const navMap = {
+            'index.html': 'nav-home',
+            'count_view.html': 'nav-count',
+            'area_view.html': 'nav-area',
+            'video_view.html': 'nav-video',
+            'map_view.html': 'nav-map'
+        };
+        
+        const activeId = navMap[currentPage];
+        if (activeId) {
+            const activeLink = document.getElementById(activeId);
+            if (activeLink) {
+                activeLink.classList.add('active');
+            }
+        }
+    })();
+</script>
+

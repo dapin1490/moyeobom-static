@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="height=device-height, initial-scale=1.0">
+    <link href="https://fonts.googleapis.com/css?family=Pretendard&display=swap" rel="stylesheet" />
+    <link href="static/css/map_view.css" rel="stylesheet" />
+    <link rel="stylesheet" href="static/css/font.css">
+    <link rel="icon" type="image/x-icon" href="static/favicon/favicon.ico">
+    <title>모여봄 - demo map view</title>
+    <script>
+        function stageClick() {
+            const div = document.querySelector(".info_popup");
+            if (div.style.display === "none" || div.style.display === "") {
+                div.style.display = "block";
+            } else {
+                div.style.display = "none";
+            }
+        }
+        function alertClick() {
+            const div = document.querySelector(".v659_1332");
+            div.style.display = "none";
+        }
+    </script>
+</head>
+<body>
+    <!-- 홈으로 돌아가기 상단 바 -->
+    <div style="position: fixed; top: 0; left: 0; right: 0; z-index: 1000; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(239, 239, 255, 1); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;">
+        <a href="index.html" style="text-decoration: none; color: rgba(0, 0, 0, 1); font-weight: 600; font-size: 16px; display: flex; align-items: center; gap: 8px;">
+            <span>←</span>
+            <span>홈으로</span>
+        </a>
+        <span style="color: rgba(84, 84, 84, 1); font-size: 14px;">데모 맵 뷰</span>
+    </div>
+    <div class="total_canvas" style="padding-top: 48px;">
+        <div id="map_image" class="map_image"></div>
+        <div class="name"></div>
+        <div class="foods" style="top: 371px; left: 343px;">
+            <div id="food01" class="food" style="top: 0px; left: 0px;">
+                <div class="food_mark"></div>
+                <span class="mark_name" style="width: 42px;">푸드코트</span>
+            </div>
+        </div>
+        <div class="event_zones">
+            <div class="event_zone">
+                <div class="event_mark"></div>
+                <span class="mark_name" style="width: 91px;">티켓부스&이벤트존</span>
+            </div>
+        </div>
+        <div class="info_popup">
+            <div class="info_window"></div>
+            <span class="info_text info_artist">nothing but theives</span>
+            <span class="info_text info_performance_status">공연중</span>
+            <span class="info_stage">MAY FOREST :</span>
+            <span id="ratio-info-label" class="info_status">여유</span>
+            <a href="map_view_info.html" style="text-decoration: none;">
+                <div class="more_info_btn"></div>
+            </a>
+            <div class="progress_bar">
+                <div class="progress-container">
+                    <div class="progress-text">0%</div>
+                    <div id="ratio-output" class="progress-bar">
+                        <div id="ratio-output-inner" class="progress-bar-inner">
+                            <span id="ratio-output-label" class="progress-label">0%</span>
+                        </div>
+                    </div>
+                    <div class="progress-text">100%</div>
+                </div>
+            </div>
+        </div>
+        <a href="index.html">
+            <div class="gpsmark"></div>
+        </a>
+        <div id="toilets" class="toilets">
+            <div class="toilet" style="top: 352px; left: 25px;">
+                <div class="toilet_mark"></div>
+                <span class="mark_name" style="width: 32px;">화장실</span>
+            </div>
+            <div class="toilet" style="top: 0px; left: 223px;">
+                <div class="toilet_mark"></div>
+                <span class="mark_name" style="width: 32px;">화장실</span>
+            </div>
+            <div class="toilet" style="top: 100px; left: 299px;">
+                <div class="toilet_mark"></div>
+                <span class="mark_name" style="width: 32px;">화장실</span>
+            </div>
+            <div class="toilet" style="top: 61px; left: 0px;">
+                <div class="toilet_mark"></div>
+                <span class="mark_name" style="width: 32px;">화장실</span>
+            </div>
+            <div class="toilet" style="top: 382px; left: 140px;">
+                <div class="toilet_mark"></div>
+                <span class="mark_name" style="width: 32px;">화장실</span>
+            </div>
+            <div class="toilet" style="top: 322px; left: 222px;">
+                <div class="toilet_mark"></div>
+                <span class="mark_name" style="width: 32px;">화장실</span>
+            </div>
+            <div class="toilet" style="top: 226px; left: 85px;">
+                <div class="toilet_mark"></div>
+                <span class="mark_name" style="width: 32px;">화장실</span>
+            </div>
+        </div>
+        <div id="stages" class="stages">
+            <div onclick="stageClick()" class="v659_1172">
+                <div id="status_mark_demo" class="status_mark" style="background: rgba(20, 209, 0, 1);"></div>
+                <span class="v659_1173">MAY FOREST</span>
+            </div>
+            <div class="stage" style="width: 143px; top: 265px; left: 6px;">
+                <div class="status_mark" style="background: rgba(255,99,130,1);"></div>
+                <span class="stage_name" style="width: 109px;">SPRING GARDEN</span>
+            </div>
+            <div class="stage" style="width: 123px; top: 242px; left: 214px;">
+                <div class="status_mark" style="background: rgba(255, 221, 0, 1);"></div>
+                <span class="stage_name" style="width: 89px;">PINK AVENUE</span>
+            </div>
+            <div class="stage" style="width: 129px; top: 104px; left: 278px;">
+                <div class="status_mark" style="background: rgba(255, 221, 0, 1);"></div>
+                <span class="stage_name" style="width: 95px;">SPARKE DOME</span>
+            </div>
+            <div class="stage" style="width: 122px; top: 0px; left: 87px;">
+                <div class="status_mark" style="background: rgba(255, 99, 130, 1);"></div>
+                <span class="stage_name" style="width: 115px;">discovery park</span>
+            </div>
+            <div class="stage" style="width: 117px; top: 136px; left: 126px;">
+                <div class="status_mark" style="background: rgba(20, 209, 0, 1);"></div>
+                <span class="stage_name" style="width: 83px;">SJF VILLAGE</span>
+            </div>
+            <div class="stage" style="width: 114px; top: 99px; left: 0px;">
+                <div class="status_mark" style="background: rgba(255, 221, 0, 1);"></div>
+                <span class="stage_name" style="width: 80px;">BRIGHT LAB</span>
+            </div>
+        </div>
+        <div class="v659_1332">
+            <div class="v659_1331"></div>
+            <div class="v659_1333"></div>
+            <div class="v659_1334">
+                <div class="v659_1335"></div>
+                <span class="v659_1336">오늘 더 이상 보지 않기</span>
+            </div>
+            <span class="v659_1337">안내되는 혼잡도는 실제 현장 상황과
+                차이가 있을 수 있습니다.
+                이 점 유의하시어 공연 및 부가시설
+                이용 부탁드립니다.</span>
+            <div onclick="alertClick()" class="v659_1338" style="cursor: pointer">
+                <span class="v659_1340">확인</span>
+                <div class="v659_1341">
+                    <div class="v659_1342"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 진행바 데이터 불러오기 스크립트 -->
+    <script>
+        // 데모용: 실제 데이터 대신 시뮬레이션
+        // 실제 구현 시에는 웹캠 데이터를 사용하거나 다른 소스에서 가져올 수 있습니다
+        async function fetchRatioData() {
+            const color_code = ["rgba(20, 209, 0, 1)", "rgba(255, 221, 0, 1)", "rgba(255, 99, 130, 1)"];
+            const progressBarInner = document.getElementById('ratio-output-inner');
+            const progressLabel = document.getElementById('ratio-output-label');
+            const status_mark = document.getElementById('status_mark_demo');
+            const ratio_info_label = document.getElementById('ratio-info-label');
+
+            // 상태와 퍼센티지 매핑
+            const statusMap = {
+                '1': 33,
+                '2': 66,
+                '3': 100
+            };
+            const statusWord = {
+                33: '여유',
+                66: '보통',
+                100: '혼잡'
+            };
+
+            // 데모용: 랜덤 값 생성 (실제로는 웹캠 데이터 사용)
+            var percentage = 33; // 기본값
+            var scode = '1';
+
+            // 데모 모드: 실제 API 호출 대신 시뮬레이션
+            // 실제 구현 시에는 count_view나 area_view에서 사용하는 것과 동일한 방식으로
+            // 웹캠 데이터를 가져와서 사용할 수 있습니다
+            try {
+                // 여기서는 데모용으로 고정값 사용
+                // 실제로는 다른 페이지에서 계산된 값을 가져오거나
+                // 별도의 웹캠 스트림을 사용할 수 있습니다
+                scode = '1'; // 데모용
+                percentage = statusMap[scode] || 33;
+            } catch (error) {
+                console.error("Error fetching ratio data:", error);
+            }
+
+            if (percentage > 66) {
+                progressBarInner.style.backgroundColor = color_code[2];
+                status_mark.style.background = color_code[2];
+                ratio_info_label.style.color = color_code[2];
+            } else if (percentage > 33) {
+                progressBarInner.style.backgroundColor = color_code[1];
+                status_mark.style.background = color_code[1];
+                ratio_info_label.style.color = color_code[1];
+            } else {
+                progressBarInner.style.backgroundColor = color_code[0];
+                status_mark.style.background = color_code[0];
+                ratio_info_label.style.color = color_code[0];
+            }
+
+            // 프로그레스 바와 텍스트 업데이트
+            progressBarInner.style.width = percentage + '%';
+            progressLabel.textContent = statusWord[percentage];
+            ratio_info_label.textContent = statusWord[percentage];
+        }
+
+        // 주기적으로 업데이트 (데모용)
+        setInterval(fetchRatioData, 2000); // 2초마다 호출
+        fetchRatioData(); // 초기 호출
+    </script>
+</body>
+</html>
+

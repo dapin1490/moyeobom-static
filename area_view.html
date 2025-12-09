@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="static/favicon/favicon.ico">
+    <link rel="stylesheet" href="static/css/font.css">
+    <link rel="stylesheet" href="static/css/common.css">
+    <!-- ONNX Runtime Web CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <title>Person Area Ratio - 모여봄</title>
+    <style>
+        .ratio-display-wrapper {
+            max-width: 600px;
+            margin: var(--spacing-xl) auto;
+        }
+
+        .ratio-card {
+            margin-bottom: var(--spacing-lg);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: var(--spacing-xs) var(--spacing-md);
+            border-radius: var(--border-radius-full);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            margin-top: var(--spacing-sm);
+        }
+
+        .status-free {
+            background-color: rgba(20, 209, 0, 0.1);
+            color: var(--color-status-free);
+        }
+
+        .status-normal {
+            background-color: rgba(255, 221, 0, 0.1);
+            color: var(--color-status-normal);
+        }
+
+        .status-crowded {
+            background-color: rgba(255, 99, 130, 0.1);
+            color: var(--color-status-crowded);
+        }
+
+        .video-container {
+            max-width: 800px;
+            margin: var(--spacing-xl) auto;
+        }
+
+        .error-message {
+            background-color: var(--color-danger);
+            color: var(--color-text-white);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius-md);
+            margin: var(--spacing-md) 0;
+        }
+
+        .progress-bar-inner.updated {
+            animation: progressUpdate 0.5s ease;
+        }
+
+        @keyframes progressUpdate {
+            0% {
+                transform: scaleX(0.95);
+            }
+            50% {
+                transform: scaleX(1.05);
+            }
+            100% {
+                transform: scaleX(1);
+            }
+        }
+
+        #video {
+            display: none;
+        }
+
+        #canvas {
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            border-radius: var(--border-radius-md);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading-message {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1 class="page-title">Person Area Ratio</h1>
+            <p class="page-subtitle">영역별 인원 비율 분석</p>
+        </div>
+
+        <div id="nav-container"></div>
+
+        <main>
+            <!-- 비율 데이터 표시 영역 -->
+            <div class="ratio-display-wrapper">
+                <div class="ratio-card card">
+                    <div class="card-header">
+                        <h2 class="card-title">혼잡도 상태</h2>
+                        <p class="card-subtitle">실시간 영역 비율 분석</p>
+                    </div>
+                    <div class="card-body">
+                        <!-- 프로그레스 바 -->
+                        <div class="progress-container">
+                            <div id="ratio-output" class="progress-bar">
+                                <div id="ratio-output-inner" class="progress-bar-inner">
+                                    <span id="ratio-output-label" class="progress-label">
+                                        <span class="skeleton" style="display: inline-block; width: 40px; height: 16px; border-radius: var(--border-radius-sm);"></span>
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 상태 배지 -->
+                        <div id="status-badge" class="status-badge" style="display: none;">
+                            <span class="skeleton" style="display: inline-block; width: 60px; height: 24px; border-radius: var(--border-radius-full);"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 에러 메시지 영역 -->
+            <div id="error-message" class="error-message" style="display: none;"></div>
+
+            <!-- 비디오 스트림 영역 -->
+            <div class="video-container">
+                <div id="loading-message" class="loading-message">
+                    웹캠 권한을 요청하는 중...
+                </div>
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <!-- 네비게이션 포함 -->
+    <script>
+        fetch('_nav.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('nav-container').innerHTML = html;
+            });
+    </script>
+
+    <!-- JavaScript 파일들 -->
+    <script src="static/js/tracker.js"></script>
+    <script src="static/js/yolo-onnx-detector.js"></script>
+    <script src="static/js/video-processor-onnx.js"></script>
+
+    <script>
+        let previousStatus = null;
+        const ratioOutputInner = document.getElementById("ratio-output-inner");
+        const ratioOutputLabel = document.getElementById("ratio-output-label");
+        const statusBadge = document.getElementById("status-badge");
+        const errorMessage = document.getElementById("error-message");
+        const loadingMessage = document.getElementById("loading-message");
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        
+        let processor = null;
+
+        // 상태별 설정
+        const statusConfig = {
+            '여유': {
+                percentage: 33,
+                color: 'rgba(20, 209, 0, 1)',
+                class: 'status-free',
+                text: '여유'
+            },
+            '보통': {
+                percentage: 66,
+                color: 'rgba(255, 221, 0, 1)',
+                class: 'status-normal',
+                text: '보통'
+            },
+            '혼잡': {
+                percentage: 100,
+                color: 'rgba(255, 99, 130, 1)',
+                class: 'status-crowded',
+                text: '혼잡'
+            }
+        };
+
+        // 상태 업데이트
+        function updateStatus(ratioCode) {
+            let status = null;
+            if (ratioCode === '1') status = '여유';
+            else if (ratioCode === '2') status = '보통';
+            else if (ratioCode === '3') status = '혼잡';
+
+            if (!status || !statusConfig[status]) {
+                ratioOutputInner.style.width = '0%';
+                ratioOutputInner.style.backgroundColor = 'var(--color-bg-light)';
+                ratioOutputLabel.textContent = '-';
+                statusBadge.style.display = 'none';
+                return;
+            }
+
+            const config = statusConfig[status];
+
+            // 이전 상태와 다르면 애니메이션
+            if (previousStatus !== status) {
+                ratioOutputInner.classList.add('updated');
+                setTimeout(() => {
+                    ratioOutputInner.classList.remove('updated');
+                }, 500);
+                previousStatus = status;
+            }
+
+            // 프로그레스 바 업데이트
+            ratioOutputInner.style.width = config.percentage + '%';
+            ratioOutputInner.style.backgroundColor = config.color;
+            ratioOutputLabel.textContent = config.text;
+
+            // 상태 배지 업데이트
+            statusBadge.textContent = config.text;
+            statusBadge.className = `status-badge ${config.class}`;
+            statusBadge.style.display = 'inline-block';
+        }
+
+        // 탐지 업데이트 이벤트 리스너
+        window.addEventListener('detection-update', (event) => {
+            const stats = event.detail;
+            updateStatus(stats.ratioCode);
+        });
+
+        // 웹캠 초기화 및 시작
+        async function initializeCamera() {
+            try {
+                loadingMessage.textContent = '웹캠 접근 중...';
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                video.play();
+                
+                loadingMessage.style.display = 'none';
+                
+                // 비디오 메타데이터 로드 대기
+                video.addEventListener('loadedmetadata', async () => {
+                    try {
+                        processor = new VideoProcessorONNX();
+                        await processor.initialize(video, canvas, 'static/models/yolov8n.onnx');
+                        await processor.start();
+                        console.log('✓ 비디오 처리 시작');
+                    } catch (error) {
+                        console.error('프로세서 초기화 실패:', error);
+                        errorMessage.textContent = `초기화 실패: ${error.message}`;
+                        errorMessage.style.display = 'block';
+                    }
+                });
+                
+            } catch (error) {
+                console.error('웹캠 접근 실패:', error);
+                loadingMessage.textContent = '웹캠 접근에 실패했습니다. 권한을 확인해주세요.';
+                errorMessage.textContent = `웹캠 오류: ${error.message}`;
+                errorMessage.style.display = 'block';
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', () => {
+            if (typeof ort === 'undefined') {
+                errorMessage.textContent = 'ONNX Runtime Web을 로드할 수 없습니다. 인터넷 연결을 확인해주세요.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            initializeCamera();
+        });
+
+        // 페이지 언로드 시 정리
+        window.addEventListener('beforeunload', () => {
+            if (processor) {
+                processor.stop();
+            }
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>
+

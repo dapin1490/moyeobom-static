@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/x-icon" href="static/favicon/favicon.ico">
+    <link rel="stylesheet" href="static/css/font.css">
+    <link rel="stylesheet" href="static/css/common.css">
+    <!-- ONNX Runtime Web CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <title>People Counter - 모여봄</title>
+    <style>
+        .count-display-wrapper {
+            display: flex;
+            justify-content: center;
+            gap: var(--spacing-lg);
+            flex-wrap: wrap;
+            margin: var(--spacing-xl) 0;
+        }
+
+        .count-card {
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .count-number {
+            font-size: 3rem;
+            font-weight: var(--font-weight-bold);
+            color: var(--color-primary);
+            transition: all var(--transition-base);
+            line-height: 1.2;
+        }
+
+        .count-number.updated {
+            animation: pulse 0.5s ease;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .direction-card {
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .direction-icon {
+            font-size: 2.5rem;
+            margin-bottom: var(--spacing-sm);
+            display: inline-block;
+            transition: all var(--transition-base);
+        }
+
+        .direction-icon.updated {
+            animation: pulse 0.5s ease;
+        }
+
+        .direction-name {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            color: var(--color-text-primary);
+            margin-bottom: var(--spacing-xs);
+        }
+
+        .direction-count {
+            font-size: var(--font-size-base);
+            color: var(--color-text-secondary);
+        }
+
+        .direction-left { color: var(--color-primary); }
+        .direction-right { color: var(--color-success); }
+        .direction-up { color: var(--color-warning); }
+        .direction-down { color: var(--color-danger); }
+
+        .video-container {
+            max-width: 800px;
+            margin: var(--spacing-xl) auto;
+        }
+
+        .error-message {
+            background-color: var(--color-danger);
+            color: var(--color-text-white);
+            padding: var(--spacing-md);
+            border-radius: var(--border-radius-md);
+            margin: var(--spacing-md) 0;
+        }
+
+        #video {
+            display: none;
+        }
+
+        #canvas {
+            width: 100%;
+            max-width: 800px;
+            height: auto;
+            border-radius: var(--border-radius-md);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading-message {
+            text-align: center;
+            padding: var(--spacing-lg);
+            color: var(--color-text-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1 class="page-title">People Counter and Tracker</h1>
+            <p class="page-subtitle">실시간 사람 수 추적</p>
+        </div>
+
+        <div id="nav-container"></div>
+
+        <main>
+            <!-- 카운트 데이터 표시 영역 -->
+            <div class="count-display-wrapper">
+                <div class="count-card card">
+                    <div class="data-label">탐지된 사람 수</div>
+                    <div id="count-output" class="count-number">
+                        <span class="skeleton" style="display: inline-block; width: 80px; height: 60px; border-radius: var(--border-radius-sm);"></span>
+                    </div>
+                    <div style="margin-top: var(--spacing-sm); color: var(--color-text-secondary); font-size: var(--font-size-sm);">
+                        실시간 업데이트 중...
+                    </div>
+                </div>
+
+                <div class="direction-card card">
+                    <div class="data-label">주요 이동 방향</div>
+                    <div id="direction-icon" class="direction-icon">
+                        <span class="skeleton" style="display: inline-block; width: 60px; height: 60px; border-radius: var(--border-radius-sm);"></span>
+                    </div>
+                    <div id="direction-name" class="direction-name">-</div>
+                    <div id="direction-count" class="direction-count">
+                        <span class="skeleton" style="display: inline-block; width: 100px; height: 20px; border-radius: var(--border-radius-sm);"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 에러 메시지 영역 -->
+            <div id="error-message" class="error-message" style="display: none;"></div>
+
+            <!-- 비디오 스트림 영역 -->
+            <div class="video-container">
+                <div id="loading-message" class="loading-message">
+                    웹캠 권한을 요청하는 중...
+                </div>
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+            </div>
+        </main>
+    </div>
+
+    <!-- 네비게이션 포함 -->
+    <script>
+        fetch('_nav.html')
+            .then(response => response.text())
+            .then(html => {
+                document.getElementById('nav-container').innerHTML = html;
+            });
+    </script>
+
+    <!-- JavaScript 파일들 -->
+    <script src="static/js/tracker.js"></script>
+    <script src="static/js/yolo-onnx-detector.js"></script>
+    <script src="static/js/video-processor-onnx.js"></script>
+
+    <script>
+        let previousCount = null;
+        let previousDirection = null;
+        const countOutput = document.getElementById("count-output");
+        const directionIcon = document.getElementById("direction-icon");
+        const directionName = document.getElementById("direction-name");
+        const directionCount = document.getElementById("direction-count");
+        const errorMessage = document.getElementById("error-message");
+        const loadingMessage = document.getElementById("loading-message");
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("canvas");
+        
+        let processor = null;
+
+        // 방향별 아이콘 및 한글 이름 매핑
+        const directionMap = {
+            'left': { icon: '←', name: '왼쪽', class: 'direction-left' },
+            'right': { icon: '→', name: '오른쪽', class: 'direction-right' },
+            'up': { icon: '↑', name: '위쪽', class: 'direction-up' },
+            'down': { icon: '↓', name: '아래쪽', class: 'direction-down' }
+        };
+
+        // 카운터 애니메이션 함수
+        function animateCounter(element) {
+            element.classList.add('updated');
+            setTimeout(() => {
+                element.classList.remove('updated');
+            }, 500);
+        }
+
+        // 이동 방향 표시 업데이트
+        function updateDirection(direction, count) {
+            if (!direction || !directionMap[direction]) {
+                directionIcon.textContent = '-';
+                directionIcon.className = 'direction-icon';
+                directionName.textContent = '데이터 없음';
+                directionCount.textContent = '-';
+                return;
+            }
+
+            const directionInfo = directionMap[direction];
+
+            // 이전 방향과 다르면 애니메이션
+            if (previousDirection !== direction) {
+                animateCounter(directionIcon);
+                previousDirection = direction;
+            }
+
+            directionIcon.textContent = directionInfo.icon;
+            directionIcon.className = `direction-icon ${directionInfo.class}`;
+            directionName.textContent = directionInfo.name;
+            directionCount.textContent = `${count}명 이동`;
+        }
+
+        // 탐지 업데이트 이벤트 리스너
+        window.addEventListener('detection-update', (event) => {
+            const stats = event.detail;
+            
+            // 사람 수 업데이트
+            if (previousCount !== null && previousCount !== stats.peopleCount) {
+                animateCounter(countOutput);
+            }
+            previousCount = stats.peopleCount;
+            countOutput.textContent = stats.peopleCount;
+            countOutput.style.color = stats.peopleCount > 0 ? 'var(--color-primary)' : 'var(--color-text-muted)';
+
+            // 이동 방향 업데이트
+            if (stats.mostMovementDirection && stats.mostMovementCount !== null) {
+                updateDirection(stats.mostMovementDirection, stats.mostMovementCount);
+            } else {
+                directionIcon.textContent = '-';
+                directionIcon.className = 'direction-icon';
+                directionName.textContent = '데이터 없음';
+                directionCount.textContent = '-';
+            }
+        });
+
+        // 웹캠 초기화 및 시작
+        async function initializeCamera() {
+            try {
+                loadingMessage.textContent = '웹캠 접근 중...';
+                
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    } 
+                });
+                
+                video.srcObject = stream;
+                video.play();
+                
+                loadingMessage.style.display = 'none';
+                
+                // 비디오 메타데이터 로드 대기
+                video.addEventListener('loadedmetadata', async () => {
+                    try {
+                        processor = new VideoProcessorONNX();
+                        await processor.initialize(video, canvas, 'static/models/yolov8n.onnx');
+                        await processor.start();
+                        console.log('✓ 비디오 처리 시작');
+                    } catch (error) {
+                        console.error('프로세서 초기화 실패:', error);
+                        errorMessage.textContent = `초기화 실패: ${error.message}`;
+                        errorMessage.style.display = 'block';
+                    }
+                });
+                
+            } catch (error) {
+                console.error('웹캠 접근 실패:', error);
+                loadingMessage.textContent = '웹캠 접근에 실패했습니다. 권한을 확인해주세요.';
+                errorMessage.textContent = `웹캠 오류: ${error.message}`;
+                errorMessage.style.display = 'block';
+            }
+        }
+
+        // 페이지 로드 시 초기화
+        window.addEventListener('load', () => {
+            // ONNX Runtime Web 로드 확인
+            if (typeof ort === 'undefined') {
+                errorMessage.textContent = 'ONNX Runtime Web을 로드할 수 없습니다. 인터넷 연결을 확인해주세요.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            
+            initializeCamera();
+        });
+
+        // 페이지 언로드 시 정리
+        window.addEventListener('beforeunload', () => {
+            if (processor) {
+                processor.stop();
+            }
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+            }
+        });
+    </script>
+</body>
+</html>
+
