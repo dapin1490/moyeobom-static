@@ -10,7 +10,8 @@ class VideoProcessorONNX {
         this.ctx = null;
         this.isProcessing = false;
         this.frameSkip = 0;
-        this.SKIP_FRAMES = 2; // 2프레임마다 1번만 처리 (성능 최적화)
+        this.SKIP_FRAMES = 1; // 프레임 스킵 제거 (깜빡임 방지)
+        this.lastTracked = []; // 이전 프레임의 트래킹 결과 저장
         this.stats = {
             peopleCount: 0,
             directionCounts: {left: 0, right: 0, up: 0, down: 0},
@@ -30,11 +31,21 @@ class VideoProcessorONNX {
             throw new Error('모델 로드 실패');
         }
         
-        // 캔버스 크기 조정
-        this.canvas.width = this.video.videoWidth || 640;
-        this.canvas.height = this.video.videoHeight || 480;
-        
-        console.log('✓ 비디오 프로세서 초기화 완료');
+        // 비디오 메타데이터 로드 대기
+        return new Promise((resolve) => {
+            const checkVideoSize = () => {
+                if (this.video.videoWidth > 0 && this.video.videoHeight > 0) {
+                    // 캔버스 크기를 비디오 크기에 맞춤
+                    this.canvas.width = this.video.videoWidth;
+                    this.canvas.height = this.video.videoHeight;
+                    console.log(`✓ 비디오 프로세서 초기화 완료 (${this.canvas.width}x${this.canvas.height})`);
+                    resolve();
+                } else {
+                    setTimeout(checkVideoSize, 100);
+                }
+            };
+            checkVideoSize();
+        });
     }
 
     async start() {
@@ -51,9 +62,12 @@ class VideoProcessorONNX {
         // 프레임 스킵 (성능 최적화)
         this.frameSkip++;
         if (this.frameSkip < this.SKIP_FRAMES) {
-            // 스킵된 프레임은 비디오만 그리기
+            // 스킵된 프레임은 이전 트래킹 결과를 사용하여 렌더링
             this.ctx.drawImage(this.video, 0, 0, 
                 this.canvas.width, this.canvas.height);
+            if (this.lastTracked.length > 0) {
+                this.renderResults(this.lastTracked, []);
+            }
             requestAnimationFrame(() => this.processFrame());
             return;
         }
@@ -75,6 +89,9 @@ class VideoProcessorONNX {
                 }))
             );
             
+            // 이전 트래킹 결과 저장 (스킵된 프레임에서 사용)
+            this.lastTracked = tracked;
+            
             // 결과 렌더링
             this.renderResults(tracked, detections);
             
@@ -94,33 +111,74 @@ class VideoProcessorONNX {
         this.ctx.drawImage(this.video, 0, 0, 
             this.canvas.width, this.canvas.height);
         
-        // 바운딩 박스 그리기
+        // 디버깅: 렌더링 정보 (주기적으로 로그)
+        if (tracked.length > 0) {
+            if (!this._renderLogged || (this._renderCount || 0) % 30 === 0) {
+                console.log('렌더링할 객체 수:', tracked.length);
+                if (tracked.length > 0) {
+                    console.log('첫 번째 객체:', tracked[0]);
+                    console.log('bbox (xyxy):', tracked[0].bbox);
+                }
+                this._renderLogged = true;
+            }
+            this._renderCount = (this._renderCount || 0) + 1;
+        }
+        
+        // 바운딩 박스 그리기 (Python 코드와 동일한 방식)
+        // Python: cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
         tracked.forEach(obj => {
-            const [cx, cy, w, h] = obj.bbox;
-            const x1 = cx - w / 2;
-            const y1 = cy - h / 2;
+            if (!obj.bbox || obj.bbox.length !== 4) {
+                if (!this._bboxErrorLogged) {
+                    console.warn('잘못된 bbox:', obj);
+                    this._bboxErrorLogged = true;
+                }
+                return;
+            }
             
-            // 박스
-            this.ctx.strokeStyle = '#00ff00';
+            // bbox는 이제 xyxy 형식 [x1, y1, x2, y2]
+            const [x1, y1, x2, y2] = obj.bbox;
+            
+            // bbox 유효성 검사
+            if (isNaN(x1) || isNaN(y1) || isNaN(x2) || isNaN(y2) || 
+                x2 <= x1 || y2 <= y1 || x1 < 0 || y1 < 0) {
+                if (!this._bboxErrorLogged) {
+                    console.warn('유효하지 않은 bbox 값:', {x1, y1, x2, y2});
+                    this._bboxErrorLogged = true;
+                }
+                return;
+            }
+            
+            // 박스 그리기 (Python cv2.rectangle과 동일)
+            this.ctx.strokeStyle = '#00ff00'; // (0, 255, 0) in BGR
             this.ctx.lineWidth = 2;
-            this.ctx.strokeRect(x1, y1, w, h);
+            this.ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
             
-            // 중심점
-            const [px, py] = obj.position;
-            this.ctx.fillStyle = '#00ff00';
-            this.ctx.beginPath();
-            this.ctx.arc(px, py, 5, 0, 2 * Math.PI);
-            this.ctx.fill();
-            
-            // ID 표시
-            this.ctx.fillStyle = '#00ff00';
-            this.ctx.font = '16px Arial';
-            this.ctx.fillText(`ID: ${obj.id}`, x1 + 5, y1 - 5);
+            // 중심점 그리기 (Python cv2.circle과 동일)
+            if (obj.position && obj.position.length === 2) {
+                const [px, py] = obj.position;
+                if (!isNaN(px) && !isNaN(py)) {
+                    this.ctx.fillStyle = '#00ff00';
+                    this.ctx.beginPath();
+                    this.ctx.arc(px, py, 5, 0, 2 * Math.PI);
+                    this.ctx.fill();
+                    
+                    // ID 표시 (Python cv2.putText와 동일: 중심점 옆에 표시)
+                    // Python: cv2.putText(frame, f"ID: {obj_id}", (x + 5, y - 5), ...)
+                    if (obj.id !== undefined) {
+                        this.ctx.fillStyle = '#00ff00';
+                        this.ctx.font = 'bold 16px Arial';
+                        // 중심점에서 오른쪽 위로 5픽셀씩 이동한 위치에 ID 표시
+                        this.ctx.fillText(`ID: ${obj.id}`, px + 5, Math.max(py - 5, 15));
+                    }
+                }
+            }
         });
     }
 
     updateStats(tracked, detections) {
-        this.stats.peopleCount = tracked.length;
+        // Python 코드와 동일: people_count는 탐지된 사람 수 (detections.length)
+        // tracked.length는 추적된 객체 수이므로 다를 수 있음
+        this.stats.peopleCount = detections.length;
         
         // 방향 통계
         this.stats.directionCounts = {left: 0, right: 0, up: 0, down: 0};
@@ -130,12 +188,15 @@ class VideoProcessorONNX {
             }
         });
         
-        // 면적 비율 계산
+        // 면적 비율 계산 (Python 코드와 동일)
+        // Python: person_area = (x2 - x1) * (y2 - y1)
         const frameArea = this.canvas.width * this.canvas.height;
         let totalPersonArea = 0;
         detections.forEach(det => {
-            const [, , w, h] = det.bbox;
-            totalPersonArea += w * h;
+            // bbox는 xyxy 형식 [x1, y1, x2, y2]
+            const [x1, y1, x2, y2] = det.bbox;
+            const personArea = (x2 - x1) * (y2 - y1);
+            totalPersonArea += personArea;
         });
         this.stats.areaRatio = (totalPersonArea / frameArea) * 100;
         

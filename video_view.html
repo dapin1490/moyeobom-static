@@ -239,7 +239,8 @@
                 // 비디오 URL 생성
                 const videoURL = URL.createObjectURL(file);
                 video.src = videoURL;
-                video.style.display = 'block';
+                // 비디오는 숨김 상태 유지 (canvas만 표시)
+                video.style.display = 'none';
                 videoPlaceholder.style.display = 'none';
 
                 // 비디오 메타데이터 로드 대기

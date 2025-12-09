@@ -94,12 +94,20 @@
             display: none;
         }
 
+        .video-container {
+            position: relative;
+            display: flex;
+            justify-content: center;
+        }
+
         #canvas {
             width: 100%;
             max-width: 800px;
             height: auto;
             border-radius: var(--border-radius-md);
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: none; /* 초기에는 숨김, 초기화 후 표시 */
+            background-color: #000;
         }
 
         .loading-message {
@@ -268,6 +276,10 @@
                 // 비디오 메타데이터 로드 대기
                 video.addEventListener('loadedmetadata', async () => {
                     try {
+                        // Canvas 표시
+                        canvas.style.display = 'block';
+                        video.style.display = 'none';
+                        
                         processor = new VideoProcessorONNX();
                         await processor.initialize(video, canvas, 'static/models/yolov8n.onnx');
                         await processor.start();

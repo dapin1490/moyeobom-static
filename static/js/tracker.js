@@ -10,7 +10,8 @@ class SimpleTracker {
     }
 
     update(detections) {
-        // detections: [{center: [x, y], bbox: [x, y, w, h]}]
+        // detections: [{center: [x, y], bbox: [x1, y1, x2, y2]}]
+        // bbox는 이제 xyxy 형식
         
         // 기존 트랙과 새 탐지 매칭
         const matched = this.matchTracks(detections);
@@ -21,7 +22,7 @@ class SimpleTracker {
             track.position = detection.center;
             track.history.push(detection.center);
             track.lastSeen = Date.now();
-            track.bbox = detection.bbox;
+            track.bbox = detection.bbox; // xyxy 형식 [x1, y1, x2, y2]
         });
         
         // 새 트랙 생성 (매칭되지 않은 탐지)
@@ -31,7 +32,7 @@ class SimpleTracker {
                     position: detection.center,
                     history: [detection.center],
                     lastSeen: Date.now(),
-                    bbox: detection.bbox
+                    bbox: detection.bbox // xyxy 형식 [x1, y1, x2, y2]
                 });
             }
         });
@@ -43,22 +44,35 @@ class SimpleTracker {
         return Array.from(this.tracks.entries()).map(([id, track]) => ({
             id,
             position: track.position,
-            bbox: track.bbox,
+            bbox: track.bbox, // xyxy 형식 [x1, y1, x2, y2]
             direction: this.calculateDirection(track.history)
         }));
     }
 
     matchTracks(detections) {
-        // 간단한 거리 기반 매칭
+        // 간단한 거리 기반 매칭 (Hungarian 알고리즘 대신 greedy 매칭)
+        // 더 안정적인 매칭을 위해 탐지를 confidence 순으로 정렬
+        const sortedDetections = detections.map((d, idx) => ({detection: d, idx}));
+        // confidence가 높은 순으로 정렬 (detection 객체에 confidence가 있다면)
+        sortedDetections.sort((a, b) => {
+            const confA = a.detection.confidence || 0;
+            const confB = b.detection.confidence || 0;
+            return confB - confA;
+        });
+        
         const matched = [];
         const usedDetections = new Set();
+        const usedTracks = new Set();
         
-        this.tracks.forEach((track, trackId) => {
+        // 먼저 기존 트랙과 매칭 시도
+        sortedDetections.forEach(({detection, idx}) => {
+            if (usedDetections.has(idx)) return;
+            
             let bestMatch = null;
             let minDistance = Infinity;
             
-            detections.forEach((detection, idx) => {
-                if (usedDetections.has(idx)) return;
+            this.tracks.forEach((track, trackId) => {
+                if (usedTracks.has(trackId)) return;
                 
                 const distance = this.euclideanDistance(
                     track.position, 
@@ -74,6 +88,7 @@ class SimpleTracker {
             if (bestMatch) {
                 matched.push(bestMatch);
                 usedDetections.add(bestMatch.idx);
+                usedTracks.add(bestMatch.trackId);
             }
         });
         
@@ -104,7 +119,7 @@ class SimpleTracker {
 
     removeOldTracks() {
         const now = Date.now();
-        const maxAge = 1000; // 1초 동안 보이지 않으면 제거
+        const maxAge = 2000; // 2초 동안 보이지 않으면 제거 (깜빡임 방지)
         
         this.tracks.forEach((track, id) => {
             if (now - track.lastSeen > maxAge) {
