@@ -171,7 +171,7 @@
 
     <!-- 네비게이션 포함 -->
     <script>
-        fetch('_nav.html')
+        fetch('nav.html')
             .then(response => response.text())
             .then(html => {
                 document.getElementById('nav-container').innerHTML = html;
@@ -193,7 +193,7 @@
         const countValue = document.getElementById('count-value');
         const ratioValue = document.getElementById('ratio-value');
         const errorMessage = document.getElementById('error-message');
-        
+
         let processor = null;
 
         // 상태별 색상
@@ -206,16 +206,16 @@
         // 탐지 업데이트 이벤트 리스너
         window.addEventListener('detection-update', (event) => {
             const stats = event.detail;
-            
+
             // 사람 수 업데이트
             countValue.textContent = stats.peopleCount;
             countValue.style.color = stats.peopleCount > 0 ? 'var(--color-primary)' : 'var(--color-text-muted)';
-            
+
             // 혼잡도 업데이트
             let statusText = '여유';
             if (stats.ratioCode === '2') statusText = '보통';
             else if (stats.ratioCode === '3') statusText = '혼잡';
-            
+
             ratioValue.textContent = statusText;
             ratioValue.style.color = statusColors[statusText] || 'var(--color-text-primary)';
         });

@@ -92,10 +92,16 @@
 
     <!-- 네비게이션 포함 -->
     <script>
-        fetch('_nav.html')
-            .then(response => response.text())
+        fetch('nav.html')
+            .then(response => {
+                if (!response.ok) throw new Error('Navigation not found');
+                return response.text();
+            })
             .then(html => {
                 document.getElementById('nav-container').innerHTML = html;
+            })
+            .catch(error => {
+                console.error('Navigation load error:', error);
             });
     </script>
 </body>

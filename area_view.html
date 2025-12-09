@@ -144,7 +144,7 @@
 
     <!-- 네비게이션 포함 -->
     <script>
-        fetch('_nav.html')
+        fetch('nav.html')
             .then(response => response.text())
             .then(html => {
                 document.getElementById('nav-container').innerHTML = html;
@@ -165,7 +165,7 @@
         const loadingMessage = document.getElementById("loading-message");
         const video = document.getElementById("video");
         const canvas = document.getElementById("canvas");
-        
+
         let processor = null;
 
         // 상태별 설정
@@ -237,19 +237,19 @@
         async function initializeCamera() {
             try {
                 loadingMessage.textContent = '웹캠 접근 중...';
-                
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         width: { ideal: 640 },
                         height: { ideal: 480 }
-                    } 
+                    }
                 });
-                
+
                 video.srcObject = stream;
                 video.play();
-                
+
                 loadingMessage.style.display = 'none';
-                
+
                 // 비디오 메타데이터 로드 대기
                 video.addEventListener('loadedmetadata', async () => {
                     try {
@@ -263,7 +263,7 @@
                         errorMessage.style.display = 'block';
                     }
                 });
-                
+
             } catch (error) {
                 console.error('웹캠 접근 실패:', error);
                 loadingMessage.textContent = '웹캠 접근에 실패했습니다. 권한을 확인해주세요.';
@@ -279,7 +279,7 @@
                 errorMessage.style.display = 'block';
                 return;
             }
-            
+
             initializeCamera();
         });
 

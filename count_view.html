@@ -159,7 +159,7 @@
 
     <!-- 네비게이션 포함 -->
     <script>
-        fetch('_nav.html')
+        fetch('nav.html')
             .then(response => response.text())
             .then(html => {
                 document.getElementById('nav-container').innerHTML = html;
@@ -182,7 +182,7 @@
         const loadingMessage = document.getElementById("loading-message");
         const video = document.getElementById("video");
         const canvas = document.getElementById("canvas");
-        
+
         let processor = null;
 
         // 방향별 아이콘 및 한글 이름 매핑
@@ -228,7 +228,7 @@
         // 탐지 업데이트 이벤트 리스너
         window.addEventListener('detection-update', (event) => {
             const stats = event.detail;
-            
+
             // 사람 수 업데이트
             if (previousCount !== null && previousCount !== stats.peopleCount) {
                 animateCounter(countOutput);
@@ -252,19 +252,19 @@
         async function initializeCamera() {
             try {
                 loadingMessage.textContent = '웹캠 접근 중...';
-                
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
+
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         width: { ideal: 640 },
                         height: { ideal: 480 }
-                    } 
+                    }
                 });
-                
+
                 video.srcObject = stream;
                 video.play();
-                
+
                 loadingMessage.style.display = 'none';
-                
+
                 // 비디오 메타데이터 로드 대기
                 video.addEventListener('loadedmetadata', async () => {
                     try {
@@ -278,7 +278,7 @@
                         errorMessage.style.display = 'block';
                     }
                 });
-                
+
             } catch (error) {
                 console.error('웹캠 접근 실패:', error);
                 loadingMessage.textContent = '웹캠 접근에 실패했습니다. 권한을 확인해주세요.';
@@ -295,7 +295,7 @@
                 errorMessage.style.display = 'block';
                 return;
             }
-            
+
             initializeCamera();
         });
 
