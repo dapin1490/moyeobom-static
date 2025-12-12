@@ -1,6 +1,6 @@
 * {
   box-sizing: border-box;
-  font-family: Pretendard;
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 body {
   font-size: 14px;
